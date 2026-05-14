@@ -1,0 +1,8 @@
+#!/usr/bin/env bashio
+# ==============================================================================
+# Take down the S6 supervision tree when example fails
+# s6-overlay docs: https://github.com/just-containers/s6-overlay
+# ==============================================================================
+
+# Halt the container on service exit so Supervisor's watchdog can restart it.
+exec /run/s6/basedir/bin/halt

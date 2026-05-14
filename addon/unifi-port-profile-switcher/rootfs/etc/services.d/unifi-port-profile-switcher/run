@@ -1,0 +1,45 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Start unifi-port-profile-switcher — reads HA options via bashio, writes
+# /etc/unifi-port-profile-switcher/config.yaml, then exec's the binary.
+# ==============================================================================
+
+declare CONFIG_FILE=/etc/unifi-port-profile-switcher/config.yaml
+
+bashio::config.require 'controller_url'
+bashio::config.require 'controller_username'
+bashio::config.require 'controller_password'
+bashio::config.require 'auth_token'
+
+bashio::log.info "Generating configuration..."
+
+mkdir -p /etc/unifi-port-profile-switcher
+install -m 0600 /dev/null "${CONFIG_FILE}"
+
+{
+  printf 'controller:\n'
+  printf '  url: %s\n'           "$(bashio::config 'controller_url')"
+  printf '  site: %s\n'          "$(bashio::config 'controller_site' 'default')"
+  printf '  username: %s\n'      "$(bashio::config 'controller_username')"
+  printf '  password: %s\n'      "$(bashio::config 'controller_password')"
+  printf '  insecure_tls: %s\n'  "$(bashio::config 'controller_insecure_tls' 'false')"
+  printf '\n'
+  printf 'server:\n'
+  printf '  bind: %s\n'          "$(bashio::config 'server_bind' '0.0.0.0:8099')"
+  printf '  auth_token: %s\n'    "$(bashio::config 'auth_token')"
+  printf '\n'
+  printf 'presets:\n'
+  declare count
+  count=$(bashio::config 'presets | length')
+  for i in $(seq 0 $((count - 1))); do
+    printf '  %s:\n'             "$(bashio::config "presets[${i}].name")"
+    printf '    switch: "%s"\n'  "$(bashio::config "presets[${i}].switch")"
+    printf '    port: %s\n'      "$(bashio::config "presets[${i}].port")"
+    printf '    profile: "%s"\n' "$(bashio::config "presets[${i}].profile")"
+  done
+} > "${CONFIG_FILE}"
+
+chmod 0600 "${CONFIG_FILE}"
+
+bashio::log.info "Starting UniFi Port Profile Switcher..."
+exec /usr/local/bin/unifi-port-profile-switcher serve --config "${CONFIG_FILE}"

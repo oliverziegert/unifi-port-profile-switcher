@@ -1,0 +1,10 @@
+# Local config with credentials — never commit
+/config.yaml
+
+# Go build output
+/unifi-port-profile-switcher
+
+# IDE
+.idea/
+.vscode/
+*.swp

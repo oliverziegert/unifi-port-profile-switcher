@@ -1,0 +1,28 @@
+#include <tunables/global>
+
+profile unifi-port-profile-switcher flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # Binary
+  /usr/local/bin/unifi-port-profile-switcher rix,
+
+  # HA add-on options (read-only)
+  /data/options.json r,
+
+  # Generated config (read/write)
+  /etc/unifi-port-profile-switcher/ rw,
+  /etc/unifi-port-profile-switcher/** rw,
+
+  # S6 overlay runtime
+  /run/s6/   r,
+  /run/s6/** mrwklix,
+
+  # Network: inbound HTTP on :8099 and outbound to UniFi controller
+  network tcp,
+
+  # Deny privilege escalation
+  deny capability sys_admin,
+  deny capability sys_module,
+  deny mount,
+  deny ptrace read,
+}

@@ -1,0 +1,16 @@
+controller:
+  url: https://192.168.1.1
+  site: default
+  username: port-switcher
+  password: hunter2
+  insecure_tls: true
+
+presets:
+  work-laptop:
+    switch: "Office USW-24"
+    port: 5
+    profile: "Work VLAN"
+  personal-laptop:
+    switch: "aa:bb:cc:dd:ee:ff"
+    port: 5
+    profile: "Personal VLAN"

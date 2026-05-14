@@ -1,0 +1,44 @@
+# https://developers.home-assistant.io/docs/apps/configuration#app-configuration
+name: UniFi Port Profile Switcher
+version: "0.0.1"
+slug: unifi-port-profile-switcher
+description: Flip UniFi switch port profiles via a local HTTP API — trigger from HA dashboards, automations, and scripts.
+url: https://github.com/oliverziegert/unifi-port-profile-switcher
+arch:
+  - amd64
+  - aarch64
+image: "ghcr.io/oliverziegert/unifi-port-profile-switcher"
+startup: services
+boot: auto
+init: false
+homeassistant: "2025.4"
+apparmor: true
+watchdog: "http://[HOST]:[PORT:8099]/healthz"
+backup: hot
+panel_icon: mdi:lan-connect
+ports:
+  8099/tcp: 8099
+ports_description:
+  8099/tcp: HTTP API (bearer-token protected)
+options:
+  controller_url: ""
+  controller_site: default
+  controller_username: ""
+  controller_password: ""
+  controller_insecure_tls: false
+  server_bind: "0.0.0.0:8099"
+  auth_token: ""
+  presets: []
+schema:
+  controller_url: "url(http,https)"
+  controller_site: "match(^[A-Za-z0-9_-]+$)?"
+  controller_username: str
+  controller_password: password
+  controller_insecure_tls: bool
+  server_bind: str
+  auth_token: password
+  presets:
+    - name: "match(^[a-z0-9-]+$)"
+      switch: str
+      port: "int(1,52)"
+      profile: str
