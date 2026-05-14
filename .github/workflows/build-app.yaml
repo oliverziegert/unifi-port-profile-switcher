@@ -80,8 +80,7 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
           container-registry-password: ${{ secrets.GITHUB_TOKEN }}
-          context: "."
-          file: "./${{ inputs.app }}/Dockerfile"
+          context: "./${{ inputs.app }}"
           image: ${{ matrix.image }}
           image-tags: |
             ${{ needs.prepare.outputs.version }}
