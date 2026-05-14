@@ -94,7 +94,7 @@ admin username/password.
 
 The recommended way to use this tool on Home Assistant OS is via the **Home Assistant add-on**, which ships the same binary as an HTTP API service that HA can call from automations and dashboard buttons.
 
-Full documentation: [addon/DOCS.md](addon/DOCS.md)
+Full documentation: [unifi-port-profile-switcher/DOCS.md](unifi-port-profile-switcher/DOCS.md)
 
 ### Quick install
 
