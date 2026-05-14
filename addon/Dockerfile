@@ -16,6 +16,9 @@ COPY --from=builder /usr/local/bin/unifi-port-profile-switcher /usr/local/bin/un
 # Copy root filesystem
 COPY rootfs /
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -fsS http://localhost:8099/healthz || exit 1
+
 LABEL \
     org.opencontainers.image.title="UniFi Port Profile Switcher" \
     org.opencontainers.image.description="Flip UniFi switch port profiles via a local HTTP API — trigger from HA dashboards, automations, and scripts." \

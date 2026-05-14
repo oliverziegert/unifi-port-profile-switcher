@@ -9,12 +9,8 @@ arch:
   - aarch64
 image: "ghcr.io/oliverziegert/unifi-port-profile-switcher"
 startup: services
-boot: auto
 init: false
 homeassistant: "2025.4"
-apparmor: true
-watchdog: "http://[HOST]:[PORT:8099]/healthz"
-backup: hot
 panel_icon: mdi:lan-connect
 ports:
   8099/tcp: 8099
