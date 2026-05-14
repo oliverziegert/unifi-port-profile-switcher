@@ -1,6 +1,6 @@
 # https://developers.home-assistant.io/docs/apps/configuration#app-configuration
 name: UniFi Port Profile Switcher
-version: "0.0.1"
+version: "0.0.2"
 slug: unifi-port-profile-switcher
 description: Flip UniFi switch port profiles via a local HTTP API — trigger from HA dashboards, automations, and scripts.
 url: https://github.com/oliverziegert/unifi-port-profile-switcher
