@@ -18,15 +18,15 @@ install -m 0600 /dev/null "${CONFIG_FILE}"
 
 {
   printf 'controller:\n'
-  printf '  url: %s\n'           "$(bashio::config 'controller_url')"
-  printf '  site: %s\n'          "$(bashio::config 'controller_site' 'default')"
-  printf '  username: %s\n'      "$(bashio::config 'controller_username')"
-  printf '  password: %s\n'      "$(bashio::config 'controller_password')"
+  printf '  url: "%s"\n'           "$(bashio::config 'controller_url')"
+  printf '  site: "%s"\n'          "$(bashio::config 'controller_site' 'default')"
+  printf '  username: "%s"\n'      "$(bashio::config 'controller_username')"
+  printf '  password: "%s"\n'      "$(bashio::config 'controller_password')"
   printf '  insecure_tls: %s\n'  "$(bashio::config 'controller_insecure_tls' 'false')"
   printf '\n'
   printf 'server:\n'
-  printf '  bind: %s\n'          "$(bashio::config 'server_bind' '0.0.0.0:8099')"
-  printf '  auth_token: %s\n'    "$(bashio::config 'auth_token')"
+  printf '  bind: "%s"\n'          "$(bashio::config 'server_bind' '0.0.0.0:8099')"
+  printf '  auth_token: "%s"\n'    "$(bashio::config 'auth_token')"
   printf '\n'
   printf 'presets:\n'
   declare count
