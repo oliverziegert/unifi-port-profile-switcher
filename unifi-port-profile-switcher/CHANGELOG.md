@@ -2,6 +2,11 @@
 
 ## 0.0.1
 
+### Added
+- `GET /ports/{switch}/{port}/active` — read-only endpoint that returns which configured preset (if any) is currently active on a switch+port, plus the port's current profile. Dashboards can now use **one** `rest` sensor per port instead of one per preset. Existing `/presets/...` endpoints are unchanged. See `DOCS.md` → "Highlight the active preset" for the updated `configuration.yaml` and Lovelace examples.
+
+## 0.0.1
+
 > **Reconfigure required on upgrade.** The options schema is stricter in 3.0.0.
 > After installing, open the **Configuration** tab, review your settings, and click **Save**.
 > Your existing `rest_command` entries, bearer-token, and exposed port are **unchanged**.

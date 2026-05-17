@@ -73,14 +73,14 @@ ports' overrides on the same switch are preserved.
 
 ### Exit codes
 
-| code | meaning |
-|---:|---|
-| 0 | success or no-op |
-| 1 | generic / unexpected error |
-| 2 | preset not found in config |
-| 3 | controller authentication failure |
-| 4 | switch, port, or profile not found |
-| 5 | controller API error (non-2xx or `meta.rc != "ok"`) |
+| code | meaning                                             |
+| ---: | --------------------------------------------------- |
+|    0 | success or no-op                                    |
+|    1 | generic / unexpected error                          |
+|    2 | preset not found in config                          |
+|    3 | controller authentication failure                   |
+|    4 | switch, port, or profile not found                  |
+|    5 | controller API error (non-2xx or `meta.rc != "ok"`) |
 
 ## Why not API keys?
 
@@ -106,6 +106,16 @@ Full documentation: [unifi-port-profile-switcher/DOCS.md](unifi-port-profile-swi
 3. Configure controller credentials, presets, and a bearer token in the **Configuration** tab.
 4. Start the add-on. The HTTP API is now reachable inside HA at port `8099`.
 
+### HTTP endpoints
+
+| Method | Path                                | Auth   | Purpose                                                       |
+|--------|-------------------------------------|--------|---------------------------------------------------------------|
+| GET    | `/healthz`                          | none   | Liveness probe.                                               |
+| GET    | `/presets`                          | bearer | List configured presets.                                      |
+| GET    | `/presets/{name}/status`            | bearer | Current vs target profile for the named preset.               |
+| POST   | `/presets/{name}/apply`             | bearer | Apply the named preset (idempotent). `?dry_run=1` to preview. |
+| GET    | `/ports/{switch}/{port}/active`     | bearer | Which configured preset is currently active on a port.        |
+
 ### Phase 2 verification
 
 Confirm the add-on is talking to the controller:
@@ -130,6 +140,11 @@ curl -X POST -H "Authorization: Bearer <token>" \
 
 # 5. Idempotent re-run (same apply again)
 # → {"changed":false,...}
+
+# 6. Active-preset lookup — read-only, one call per port instead of per preset
+curl -H "Authorization: Bearer <token>" \
+  "http://<ha-ip>:8099/ports/Office%20USW-24/5/active"
+# → {"switch":"Office USW-24","port":5,"active_preset":"work-laptop",...}
 ```
 
 ## Dependency updates
