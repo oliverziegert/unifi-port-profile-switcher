@@ -105,19 +105,9 @@ var macRE = regexp.MustCompile(`^([0-9a-fA-F]{2}[:.-]?){5}[0-9a-fA-F]{2}$`)
 // the device's MAC (case- and separator-insensitive); otherwise ref is matched
 // against the device name, case-insensitively.
 func FindDevice(devices []Device, ref string) (*Device, error) {
-	if macRE.MatchString(ref) {
-		want := normalizeMAC(ref)
-		for i := range devices {
-			if normalizeMAC(devices[i].MAC) == want {
-				return &devices[i], nil
-			}
-		}
-	} else {
-		want := strings.ToLower(ref)
-		for i := range devices {
-			if strings.ToLower(devices[i].Name) == want {
-				return &devices[i], nil
-			}
+	for i := range devices {
+		if DeviceMatches(devices[i], ref) {
+			return &devices[i], nil
 		}
 	}
 	names := make([]string, 0, len(devices))
@@ -128,6 +118,18 @@ func FindDevice(devices []Device, ref string) (*Device, error) {
 	}
 	sort.Strings(names)
 	return nil, fmt.Errorf("%w: %q (available: %s)", ErrDeviceNotFound, ref, strings.Join(names, ", "))
+}
+
+// DeviceMatches reports whether ref identifies d. A MAC-like ref matches the
+// device's MAC (case- and separator-insensitive); any other ref matches the
+// device name case-insensitively. The matching rules are kept identical to
+// FindDevice's so callers see the same behaviour regardless of which entry
+// point they used.
+func DeviceMatches(d Device, ref string) bool {
+	if macRE.MatchString(ref) {
+		return normalizeMAC(d.MAC) == normalizeMAC(ref)
+	}
+	return strings.EqualFold(d.Name, ref)
 }
 
 func normalizeMAC(s string) string {
