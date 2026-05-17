@@ -6,9 +6,11 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,6 +38,7 @@ func New(cfg *config.Config, factory ClientFactory, log *slog.Logger) *Server {
 	mux.HandleFunc("GET /presets", s.auth(s.handleList))
 	mux.HandleFunc("GET /presets/{name}/status", s.auth(s.handleStatus))
 	mux.HandleFunc("POST /presets/{name}/apply", s.auth(s.handleApply))
+	mux.HandleFunc("GET /ports/{switch}/{port}/active", s.auth(s.handleActive))
 	s.srv = &http.Server{
 		Addr:    cfg.Server.Bind,
 		Handler: s.logging(mux),
@@ -177,6 +180,32 @@ func (s *Server) handleApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res, err := switcher.Apply(r.Context(), cli, name, preset, switcher.Options{DryRun: dryRun})
+	if err != nil {
+		writeHTTPError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+func (s *Server) handleActive(w http.ResponseWriter, r *http.Request) {
+	switchRef := r.PathValue("switch")
+	portStr := r.PathValue("port")
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid port: "+portStr)
+		return
+	}
+	if port < 1 || port > 52 {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("port out of range: %d (must be 1-52)", port))
+		return
+	}
+
+	cli, err := s.factory()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	res, err := switcher.ActivePreset(r.Context(), cli, s.cfg.Presets, switchRef, port)
 	if err != nil {
 		writeHTTPError(w, err)
 		return

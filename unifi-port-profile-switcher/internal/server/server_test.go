@@ -340,6 +340,164 @@ func errFactory() (switcher.ControllerClient, error) {
 	return nil, errors.New("factory error")
 }
 
+func TestActive_MatchingPreset_Returns200(t *testing.T) {
+	cli := makeClient()
+	// Port 5 currently sits on personal-id; the configured preset targets
+	// Work VLAN, so no match. Flip the port to Work VLAN.
+	cli.devices[0].PortOverrides[0].PortconfID = "work-id"
+	srv := newServer(t, "secret", cli)
+	defer srv.Close()
+
+	res := get(t, srv, "/ports/Office%20USW-24/5/active", "secret")
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", res.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body["active_preset"] != "work-laptop" {
+		t.Errorf("active_preset = %v, want work-laptop", body["active_preset"])
+	}
+	if body["switch"] != "Office USW-24" {
+		t.Errorf("switch = %v", body["switch"])
+	}
+	if body["profile"] != "Work VLAN" || body["profile_id"] != "work-id" {
+		t.Errorf("profile/id = %v/%v", body["profile"], body["profile_id"])
+	}
+	if cli.updateCalls != 0 {
+		t.Errorf("updateCalls = %d, want 0 (read-only endpoint)", cli.updateCalls)
+	}
+}
+
+func TestActive_NoMatchingPreset_ReturnsNull(t *testing.T) {
+	cli := makeClient()
+	// Port sits on personal-id; only preset targets Work VLAN — no match.
+	cli.profiles = append(cli.profiles, unifi.PortProfile{ID: "personal-id", Name: "Personal VLAN"})
+	srv := newServer(t, "secret", cli)
+	defer srv.Close()
+
+	res := get(t, srv, "/ports/Office%20USW-24/5/active", "secret")
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", res.StatusCode)
+	}
+	// Decode into a map so we can distinguish JSON null from "".
+	var body map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body["active_preset"] != nil {
+		t.Errorf("active_preset = %v, want JSON null", body["active_preset"])
+	}
+	if body["profile"] != "Personal VLAN" {
+		t.Errorf("profile = %v, want Personal VLAN", body["profile"])
+	}
+}
+
+func TestActive_NonNumericPort_Returns400(t *testing.T) {
+	srv := newServer(t, "secret", makeClient())
+	defer srv.Close()
+
+	res := get(t, srv, "/ports/Office%20USW-24/abc/active", "secret")
+	if res.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", res.StatusCode)
+	}
+}
+
+func TestActive_PortOutOfRange_Returns400(t *testing.T) {
+	srv := newServer(t, "secret", makeClient())
+	defer srv.Close()
+
+	for _, p := range []string{"0", "53", "-1", "999"} {
+		res := get(t, srv, "/ports/Office%20USW-24/"+p+"/active", "secret")
+		if res.StatusCode != http.StatusBadRequest {
+			t.Errorf("port %s: status = %d, want 400", p, res.StatusCode)
+		}
+	}
+}
+
+func TestActive_UnknownSwitch_Returns404(t *testing.T) {
+	srv := newServer(t, "secret", makeClient())
+	defer srv.Close()
+
+	res := get(t, srv, "/ports/Ghost/5/active", "secret")
+	if res.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", res.StatusCode)
+	}
+}
+
+func TestActive_PortNotOnSwitch_Returns404(t *testing.T) {
+	srv := newServer(t, "secret", makeClient())
+	defer srv.Close()
+
+	// Switch has only port 5 in its port_table; ask for port 7 (still valid 1-52).
+	res := get(t, srv, "/ports/Office%20USW-24/7/active", "secret")
+	if res.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", res.StatusCode)
+	}
+}
+
+func TestActive_MissingAuth_Returns401(t *testing.T) {
+	srv := newServer(t, "secret", makeClient())
+	defer srv.Close()
+
+	res := get(t, srv, "/ports/Office%20USW-24/5/active", "")
+	if res.StatusCode != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", res.StatusCode)
+	}
+}
+
+func TestActive_WrongAuth_Returns401(t *testing.T) {
+	srv := newServer(t, "secret", makeClient())
+	defer srv.Close()
+
+	res := get(t, srv, "/ports/Office%20USW-24/5/active", "wrong")
+	if res.StatusCode != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", res.StatusCode)
+	}
+}
+
+func TestActive_ControllerAuthError_Returns502(t *testing.T) {
+	cli := makeClient()
+	cli.loginErr = unifi.ErrAuth
+	srv := newServer(t, "secret", cli)
+	defer srv.Close()
+
+	res := get(t, srv, "/ports/Office%20USW-24/5/active", "secret")
+	if res.StatusCode != http.StatusBadGateway {
+		t.Errorf("status = %d, want 502", res.StatusCode)
+	}
+}
+
+func TestActive_ControllerAPIError_Returns502(t *testing.T) {
+	cli := makeClient()
+	cli.loginErr = &unifi.APIError{Status: 500, Method: "POST", Path: "/login", Message: "oops"}
+	srv := newServer(t, "secret", cli)
+	defer srv.Close()
+
+	res := get(t, srv, "/ports/Office%20USW-24/5/active", "secret")
+	if res.StatusCode != http.StatusBadGateway {
+		t.Errorf("status = %d, want 502", res.StatusCode)
+	}
+}
+
+func TestActive_FactoryError_Returns500(t *testing.T) {
+	cfg := makeConfig("secret")
+	srv := server.New(cfg, errFactory, slog.Default())
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+
+	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/ports/Office%20USW-24/5/active", nil)
+	req.Header.Set("Authorization", "Bearer secret")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("do: %v", err)
+	}
+	if res.StatusCode != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", res.StatusCode)
+	}
+}
+
 func TestStatus_FactoryError_Returns500(t *testing.T) {
 	cfg := makeConfig("secret")
 	srv := server.New(cfg, errFactory, slog.Default())
