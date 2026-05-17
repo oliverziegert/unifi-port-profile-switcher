@@ -15,7 +15,7 @@ jobs:
     name: Find apps
     runs-on: ubuntu-latest
     outputs:
-      addons: ${{ steps.addons.outputs.addons_list }}
+      addons: ${{ steps.filter.outputs.addons }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -23,6 +23,18 @@ jobs:
       - name: 🔍 Find app directories
         id: addons
         uses: home-assistant/actions/helpers/find-addons@f6f29a7ee3fa0eccadf3620a7b9ee00ab54ec03b # master
+
+      - name: 🧹 Filter to real addons
+        id: filter
+        env:
+          APPS_JSON: ${{ steps.addons.outputs.addons_list }}
+        run: |
+          # Drop directories that match config.* but aren't HA addons (no Dockerfile)
+          filtered=()
+          for app in $(echo "${APPS_JSON}" | jq -r '.[]'); do
+            [ -f "${app}/Dockerfile" ] && filtered+=("${app}")
+          done
+          echo "addons=$(jq -nc '$ARGS.positional' --args "${filtered[@]}")" >> "$GITHUB_OUTPUT"
 
   lint:
     name: Lint app ${{ matrix.path }}

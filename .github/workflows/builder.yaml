@@ -39,6 +39,13 @@ jobs:
           APPS: ${{ steps.apps.outputs.addons }}
           CHANGED_FILES: ${{ steps.changed_files.outputs.all_changed_files }}
         run: |
+          # Drop directories that match config.* but aren't HA addons (no Dockerfile)
+          filtered_apps=()
+          for app in ${APPS}; do
+            [ -f "${app}/Dockerfile" ] && filtered_apps+=("${app}")
+          done
+          APPS="${filtered_apps[*]}"
+
           changed_apps=()
 
           # If the workflow file itself changed, rebuild all apps
