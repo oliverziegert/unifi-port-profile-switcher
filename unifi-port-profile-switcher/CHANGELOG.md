@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/apps/presentation#keeping-a-changelog -->
 
+## Unreleased
+
+### Changed
+- Addon image now carries `io.hass.type=addon` (was `io.hass.type=app`). The Home Assistant supervisor keys on the addon manifest rather than this label, so there is no user-visible behaviour change; the new label simply matches the HA convention.
+- Addon image carries OCI provenance labels injected from the CI workflow context: `org.opencontainers.image.revision` (commit SHA), `org.opencontainers.image.version` (addon version), `org.opencontainers.image.created` (build timestamp, RFC 3339), `org.opencontainers.image.source` (repository URL), plus `title`, `description`, and `licenses`. The corresponding `LABEL` block was removed from the Dockerfile.
+
 ## 0.0.1
 
 ### Added

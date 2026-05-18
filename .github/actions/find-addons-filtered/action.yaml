@@ -1,0 +1,175 @@
+# Composite action: discover Home Assistant addon directories, drop any that
+# lack a Dockerfile, and (optionally) filter the resulting list against a
+# caller-supplied set of changed files using a small list of glob patterns.
+#
+# See ./README.md for input/output details and rationale.
+name: Find addons (filtered)
+description: >-
+  Discover addon directories via home-assistant/actions/helpers/find-addons,
+  drop any that lack a Dockerfile, and optionally filter the result against
+  a caller-supplied changed-files list using monitored globs.
+
+inputs:
+  changed_files:
+    description: >-
+      Space- or newline-separated list of files that changed in the current
+      event (typically the `all_changed_files` output of
+      tj-actions/changed-files). When empty, `changed_apps` equals `addons`.
+    required: false
+    default: ""
+  monitored_globs:
+    description: >-
+      Multi-line list of glob patterns (relative to each addon directory) that
+      mark a changed file as addon-relevant. Defaults cover addon config,
+      Dockerfile, runtime layout, translations, and the Go module.
+    required: false
+    default: |
+      config.{json,yaml,yml}
+      Dockerfile
+      rootfs/**
+      translations/**
+      **/*.go
+      go.mod
+      go.sum
+
+outputs:
+  addons:
+    description: JSON array of discovered addon directories (Dockerfile-bearing).
+    value: ${{ steps.filter.outputs.addons }}
+  changed_apps:
+    description: >-
+      JSON array of addon directories whose contents intersect `changed_files`
+      according to `monitored_globs`. Equals `addons` when `changed_files` is
+      empty or when the addon-build workflow itself changed.
+    value: ${{ steps.filter.outputs.changed_apps }}
+  changed:
+    description: >-
+      "true" when `changed_apps` is non-empty, otherwise "false". Convenient
+      for `if:` gating in caller workflows.
+    value: ${{ steps.filter.outputs.changed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Find addon directories
+      id: discover
+      uses: home-assistant/actions/helpers/find-addons@f6f29a7ee3fa0eccadf3620a7b9ee00ab54ec03b # master
+
+    - name: Filter to Dockerfile-bearing addons and intersect with changed files
+      id: filter
+      shell: bash
+      env:
+        ADDONS_RAW: ${{ steps.discover.outputs.addons }}
+        CHANGED_FILES: ${{ inputs.changed_files }}
+        MONITORED_GLOBS: ${{ inputs.monitored_globs }}
+      run: |
+        set -euo pipefail
+
+        # 1. Tokenise the addon list. find-addons emits a space-separated string.
+        read -r -a all_addons <<<"${ADDONS_RAW}"
+
+        # 2. Drop directories without a Dockerfile (e.g. .serena/, openspec/).
+        filtered=()
+        for app in "${all_addons[@]}"; do
+          [ -f "${app}/Dockerfile" ] && filtered+=("${app}")
+        done
+
+        # 3. Emit `addons` (full filtered list).
+        if [[ ${#filtered[@]} -gt 0 ]]; then
+          addons_json=$(jq -nc '$ARGS.positional' --args "${filtered[@]}")
+        else
+          addons_json='[]'
+        fi
+        echo "addons=${addons_json}" >>"$GITHUB_OUTPUT"
+
+        # 4. Determine `changed_apps`.
+        # 4a. No changed_files supplied → changed_apps == addons.
+        if [[ -z "${CHANGED_FILES// /}" ]]; then
+          echo "changed_apps=${addons_json}" >>"$GITHUB_OUTPUT"
+          if [[ ${#filtered[@]} -gt 0 ]]; then
+            echo "changed=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >>"$GITHUB_OUTPUT"
+          fi
+          exit 0
+        fi
+
+        # 4b. Workflow-rebuild escape hatch: if the addon-build workflows
+        #     themselves changed, treat every addon as changed.
+        if [[ "${CHANGED_FILES}" =~ \.github/workflows/(builder|build-app)\.yaml ]]; then
+          echo "changed_apps=${addons_json}" >>"$GITHUB_OUTPUT"
+          if [[ ${#filtered[@]} -gt 0 ]]; then
+            echo "changed=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >>"$GITHUB_OUTPUT"
+          fi
+          exit 0
+        fi
+
+        # 4c. Read the monitored globs into an array (one per non-blank line).
+        # Avoid `mapfile` so the script also runs on bash 3.x (macOS) for local testing.
+        globs=()
+        while IFS= read -r line; do
+          line="${line#"${line%%[![:space:]]*}"}"
+          line="${line%"${line##*[![:space:]]}"}"
+          [[ -n "$line" ]] && globs+=("$line")
+        done <<<"${MONITORED_GLOBS}"
+
+        # 4d. Tokenise changed_files (tj-actions/changed-files emits space- or
+        #     newline-separated paths).
+        read -r -a changed_files_arr <<<"${CHANGED_FILES//$'\n'/ }"
+
+        # 4e. Intersect addon directories with changed files, per glob, per addon.
+        #     Notes on bash matching semantics used below:
+        #     - `*` in `[[ str == pattern ]]` matches across slashes, so
+        #       `*.go` matches `internal/server/server.go` even without
+        #       globstar. `**/*.go` and `*.go` are therefore equivalent here.
+        #     - Brace expansion (`config.{json,yaml,yml}`) is done via
+        #       `eval set --` with filesystem globbing disabled (`set -f`)
+        #       so an unmatched pattern is not silently swallowed by nullglob.
+        matched=()
+        for app in "${filtered[@]}"; do
+          for file in "${changed_files_arr[@]}"; do
+            # Strip leading "./" from a changed-file entry if present.
+            file="${file#./}"
+            # Quick prefix check: the file must live under the addon directory.
+            case "${file}" in
+              "${app}/"*) rel="${file#${app}/}" ;;
+              *) continue ;;
+            esac
+
+            hit=0
+            for glob in "${globs[@]}"; do
+              # Brace-expand the glob into positional parameters with
+              # filesystem globbing disabled, so e.g. `config.{json,yaml,yml}`
+              # expands to three patterns and `**/*.go` is left as-is rather
+              # than being globbed against the workspace and disappearing.
+              set -f
+              # shellcheck disable=SC2086
+              eval "set -- ${glob}"
+              set +f
+              for expanded in "$@"; do
+                # shellcheck disable=SC2053
+                if [[ "${rel}" == ${expanded} ]]; then
+                  hit=1
+                  break
+                fi
+              done
+              [[ ${hit} -eq 1 ]] && break
+            done
+
+            if [[ ${hit} -eq 1 ]]; then
+              matched+=("${app}")
+              break
+            fi
+          done
+        done
+
+        if [[ ${#matched[@]} -gt 0 ]]; then
+          changed_apps_json=$(jq -nc '$ARGS.positional' --args "${matched[@]}")
+          echo "changed_apps=${changed_apps_json}" >>"$GITHUB_OUTPUT"
+          echo "changed=true" >>"$GITHUB_OUTPUT"
+        else
+          echo "changed_apps=[]" >>"$GITHUB_OUTPUT"
+          echo "changed=false" >>"$GITHUB_OUTPUT"
+        fi

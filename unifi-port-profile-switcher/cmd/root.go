@@ -69,7 +69,7 @@ type IO struct {
 func Run(args []string, io IO) int {
 	fs := flag.NewFlagSet("unifi-port-profile-switcher", flag.ContinueOnError)
 	fs.SetOutput(io.Stderr)
-	fs.Usage = func() { fmt.Fprint(io.Stderr, usage) }
+	fs.Usage = func() { _, _ = fmt.Fprint(io.Stderr, usage) }
 
 	var (
 		configPath string
@@ -88,7 +88,7 @@ func Run(args []string, io IO) int {
 	}
 	rest := fs.Args()
 	if len(rest) == 0 {
-		fmt.Fprint(io.Stderr, usage)
+		_, _ = fmt.Fprint(io.Stderr, usage)
 		return ExitGeneric
 	}
 
@@ -97,7 +97,7 @@ func Run(args []string, io IO) int {
 	path := resolveConfigPath(configPath)
 	cfg, err := config.Load(path)
 	if err != nil {
-		fmt.Fprintf(io.Stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(io.Stderr, "error: %v\n", err)
 		return ExitGeneric
 	}
 
@@ -106,7 +106,7 @@ func Run(args []string, io IO) int {
 		return runList(cfg, jsonOut, io)
 	case "status":
 		if len(rest) < 2 {
-			fmt.Fprint(io.Stderr, "error: status requires a preset name\n")
+			_, _ = fmt.Fprint(io.Stderr, "error: status requires a preset name\n")
 			return ExitGeneric
 		}
 		return runStatus(cfg, rest[1], jsonOut, io)
@@ -171,7 +171,7 @@ func runList(cfg *config.Config, jsonOut bool, io IO) int {
 		enc := json.NewEncoder(io.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(out); err != nil {
-			fmt.Fprintf(io.Stderr, "error: encode json: %v\n", err)
+			_, _ = fmt.Fprintf(io.Stderr, "error: encode json: %v\n", err)
 			return ExitGeneric
 		}
 		return ExitOK
@@ -179,7 +179,7 @@ func runList(cfg *config.Config, jsonOut bool, io IO) int {
 
 	for _, n := range names {
 		p := cfg.Presets[n]
-		fmt.Fprintf(io.Stdout, "%s\tswitch=%s\tport=%d\tprofile=%s\n", n, p.Switch, p.Port, p.Profile)
+		_, _ = fmt.Fprintf(io.Stdout, "%s\tswitch=%s\tport=%d\tprofile=%s\n", n, p.Switch, p.Port, p.Profile)
 	}
 	return ExitOK
 }
@@ -187,12 +187,12 @@ func runList(cfg *config.Config, jsonOut bool, io IO) int {
 func runStatus(cfg *config.Config, name string, jsonOut bool, io IO) int {
 	preset, ok := cfg.Presets[name]
 	if !ok {
-		fmt.Fprintf(io.Stderr, "error: %s: %s\n", ErrPresetNotFound, name)
+		_, _ = fmt.Fprintf(io.Stderr, "error: %s: %s\n", ErrPresetNotFound, name)
 		return ExitPresetMissing
 	}
 	cli, err := newClient(cfg)
 	if err != nil {
-		fmt.Fprintf(io.Stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(io.Stderr, "error: %v\n", err)
 		return ExitGeneric
 	}
 	res, err := switcher.Status(context.Background(), cli, name, preset)
@@ -205,12 +205,12 @@ func runStatus(cfg *config.Config, name string, jsonOut bool, io IO) int {
 func runApply(cfg *config.Config, name string, dryRun, jsonOut bool, io IO) int {
 	preset, ok := cfg.Presets[name]
 	if !ok {
-		fmt.Fprintf(io.Stderr, "error: %s: %s\n", ErrPresetNotFound, name)
+		_, _ = fmt.Fprintf(io.Stderr, "error: %s: %s\n", ErrPresetNotFound, name)
 		return ExitPresetMissing
 	}
 	cli, err := newClient(cfg)
 	if err != nil {
-		fmt.Fprintf(io.Stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(io.Stderr, "error: %v\n", err)
 		return ExitGeneric
 	}
 	res, err := switcher.Apply(context.Background(), cli, name, preset, switcher.Options{DryRun: dryRun})
@@ -225,7 +225,7 @@ func runServe(cfg *config.Config, io IO) int {
 		cfg.Server.AuthToken = tok
 	}
 	if cfg.Server.AuthToken == "" {
-		fmt.Fprint(io.Stderr, "error: serve requires an auth token (set server.auth_token in config or AUTH_TOKEN env var)\n")
+		_, _ = fmt.Fprint(io.Stderr, "error: serve requires an auth token (set server.auth_token in config or AUTH_TOKEN env var)\n")
 		return ExitGeneric
 	}
 
@@ -247,7 +247,7 @@ func RunServeContext(ctx context.Context, cfg *config.Config, factory server.Cli
 func runServeContext(ctx context.Context, cfg *config.Config, factory server.ClientFactory, io IO) int {
 	srv := server.New(cfg, factory, slog.Default())
 	if err := srv.Run(ctx); err != nil {
-		fmt.Fprintf(io.Stderr, "error: serve: %v\n", err)
+		_, _ = fmt.Fprintf(io.Stderr, "error: serve: %v\n", err)
 		return ExitGeneric
 	}
 	return ExitOK
@@ -262,7 +262,7 @@ func writeResult(res switcher.Result, jsonOut bool, io IO) int {
 		enc := json.NewEncoder(io.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(res); err != nil {
-			fmt.Fprintf(io.Stderr, "error: encode json: %v\n", err)
+			_, _ = fmt.Fprintf(io.Stderr, "error: encode json: %v\n", err)
 			return ExitGeneric
 		}
 		return ExitOK
@@ -270,24 +270,23 @@ func writeResult(res switcher.Result, jsonOut bool, io IO) int {
 
 	switch {
 	case res.DryRun && res.FromProfile != res.ToProfile:
-		fmt.Fprintf(io.Stdout, "[dry-run] %s: switch=%s port=%d would change %q -> %q\n",
+		_, _ = fmt.Fprintf(io.Stdout, "[dry-run] %s: switch=%s port=%d would change %q -> %q\n",
 			res.Preset, res.Switch, res.Port, res.FromProfile, res.ToProfile)
 	case res.Changed:
-		fmt.Fprintf(io.Stdout, "%s: switch=%s port=%d changed %q -> %q\n",
+		_, _ = fmt.Fprintf(io.Stdout, "%s: switch=%s port=%d changed %q -> %q\n",
 			res.Preset, res.Switch, res.Port, res.FromProfile, res.ToProfile)
 	case !res.Changed && res.FromProfile == res.ToProfile:
-		fmt.Fprintf(io.Stdout, "%s: switch=%s port=%d already on %q (no-op)\n",
+		_, _ = fmt.Fprintf(io.Stdout, "%s: switch=%s port=%d already on %q (no-op)\n",
 			res.Preset, res.Switch, res.Port, res.ToProfile)
 	default:
-		// Status, dry-run with no change, etc.
-		fmt.Fprintf(io.Stdout, "%s: switch=%s port=%d current=%q target=%q\n",
+		_, _ = fmt.Fprintf(io.Stdout, "%s: switch=%s port=%d current=%q target=%q\n",
 			res.Preset, res.Switch, res.Port, res.FromProfile, res.ToProfile)
 	}
 	return ExitOK
 }
 
 func reportApplyError(w io.Writer, err error) int {
-	fmt.Fprintf(w, "error: %v\n", err)
+	_, _ = fmt.Fprintf(w, "error: %v\n", err)
 	switch {
 	case errors.Is(err, unifi.ErrAuth):
 		return ExitAuth

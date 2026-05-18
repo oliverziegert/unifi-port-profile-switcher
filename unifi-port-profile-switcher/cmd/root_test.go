@@ -169,7 +169,7 @@ func TestServe_AcceptsRequestAndHealthz(t *testing.T) {
 	for {
 		res, err := http.Get("http://127.0.0.1:18099/healthz") //nolint:noctx
 		if err == nil {
-			res.Body.Close()
+			_ = res.Body.Close()
 			if res.StatusCode == http.StatusOK {
 				break
 			}

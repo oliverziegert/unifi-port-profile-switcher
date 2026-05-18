@@ -208,4 +208,3 @@ func TestActiveResult_JSON_StringWhenMatch(t *testing.T) {
 		t.Errorf("active_preset wrong: %s", b)
 	}
 }
-

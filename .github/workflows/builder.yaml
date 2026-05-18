@@ -1,7 +1,10 @@
+# Addon image builder.
+#
+# Addon-discovery and the "did anything addon-relevant change?" check live in
+# the reusable composite action at .github/actions/find-addons-filtered. Edit
+# that action — not this workflow — to change which directories count as addons
+# or which file globs trigger a rebuild.
 name: Builder
-
-env:
-  MONITORED_FILES: "config.json config.yaml config.yml Dockerfile rootfs"
 
 on:
   pull_request:
@@ -19,8 +22,8 @@ jobs:
     name: Initialize builds
     runs-on: ubuntu-latest
     outputs:
-      changed: ${{ steps.filter.outputs.changed }}
-      changed_apps: ${{ steps.filter.outputs.changed_apps }}
+      changed: ${{ steps.addons.outputs.changed }}
+      changed_apps: ${{ steps.addons.outputs.changed_apps }}
     steps:
       - name: Check out the repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -29,45 +32,11 @@ jobs:
         id: changed_files
         uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
 
-      - name: Find app directories
-        id: apps
-        uses: home-assistant/actions/helpers/find-addons@f6f29a7ee3fa0eccadf3620a7b9ee00ab54ec03b # master
-
-      - name: Filter changed apps
-        id: filter
-        env:
-          APPS: ${{ steps.apps.outputs.addons }}
-          CHANGED_FILES: ${{ steps.changed_files.outputs.all_changed_files }}
-        run: |
-          # Drop directories that match config.* but aren't HA addons (no Dockerfile)
-          filtered_apps=()
-          for app in ${APPS}; do
-            [ -f "${app}/Dockerfile" ] && filtered_apps+=("${app}")
-          done
-          APPS="${filtered_apps[*]}"
-
-          changed_apps=()
-
-          # If the workflow file itself changed, rebuild all apps
-          if [[ "${CHANGED_FILES}" =~ \.github/workflows/(builder|build-app)\.yaml ]]; then
-            changed_apps=(${APPS})
-          else
-            for app in ${APPS}; do
-              for file in ${MONITORED_FILES}; do
-                if [[ "${CHANGED_FILES}" =~ ${app}/${file} ]]; then
-                  changed_apps+=("${app}")
-                  break
-                fi
-              done
-            done
-          fi
-
-          if [[ ${#changed_apps[@]} -gt 0 ]]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "changed_apps=$(jq -nc '$ARGS.positional' --args "${changed_apps[@]}")" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Discover and filter addons
+        id: addons
+        uses: ./.github/actions/find-addons-filtered
+        with:
+          changed_files: ${{ steps.changed_files.outputs.all_changed_files }}
 
   build-app:
     name: Build ${{ matrix.app }}

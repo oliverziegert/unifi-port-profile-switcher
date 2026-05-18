@@ -19,8 +19,6 @@ COPY rootfs /
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -fsS http://localhost:8099/healthz || exit 1
 
-LABEL \
-    org.opencontainers.image.title="UniFi Port Profile Switcher" \
-    org.opencontainers.image.description="Flip UniFi switch port profiles via a local HTTP API — trigger from HA dashboards, automations, and scripts." \
-    org.opencontainers.image.source="https://github.com/oliverziegert/unifi-port-profile-switcher" \
-    org.opencontainers.image.licenses="Apache License 2.0"
+# OCI and io.hass.* labels are injected by .github/workflows/build-app.yaml so
+# they carry workflow-context provenance (revision, version, created). Do not
+# hand-write them here.

@@ -14,6 +14,25 @@ go build -o unifi-port-profile-switcher .
 sudo install -m 0755 ./unifi-port-profile-switcher /usr/local/bin/
 ```
 
+### Releases
+
+Prebuilt binaries for `linux/{amd64,arm64}` and `darwin/{amd64,arm64}` are
+attached to each [GitHub Release](https://github.com/oliverziegert/unifi-port-profile-switcher/releases),
+along with a `SHA256SUMS` file:
+
+```sh
+curl -L -o unifi-port-profile-switcher \
+  "https://github.com/oliverziegert/unifi-port-profile-switcher/releases/latest/download/unifi-port-profile-switcher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m)"
+chmod +x unifi-port-profile-switcher
+```
+
+The binaries are **unsigned**. On macOS, clear Gatekeeper quarantine before
+running the first time:
+
+```sh
+xattr -d com.apple.quarantine ./unifi-port-profile-switcher
+```
+
 ## Configure
 
 Create a dedicated local admin user on the UniFi Network app (e.g.
@@ -167,7 +186,7 @@ This repository uses the [Renovate GitHub App](https://github.com/apps/renovate)
 }
 ```
 
-**Note for contributors:** GitHub Actions `uses:` references are pinned to a 40-character commit SHA with a trailing version comment (e.g., `uses: actions/checkout@abc123 # v4.2.0`). Do not remove or "clean up" these comments — Renovate relies on them to track the current version.
+**Note for contributors:** GitHub Actions `uses:` references are pinned to a 40-character commit SHA with a trailing version comment (e.g., `uses: actions/checkout@abc123 # v4.2.0`). Do not remove or "clean up" these comments — Renovate relies on them to track the current version. This includes `uses:` references inside the local composite action at `.github/actions/find-addons-filtered/action.yaml` — Renovate tracks those too.
 
 ## Develop
 
@@ -175,4 +194,25 @@ This repository uses the [Renovate GitHub App](https://github.com/apps/renovate)
 go test ./...
 go vet ./...
 go build ./...
+```
+
+### Lint
+
+CI runs `golangci-lint` against this module with a curated rule set covering
+the bug categories that have shown up in this codebase's history. The eight
+enabled checks are:
+
+- `errcheck` — unchecked errors
+- `govet` — Go's built-in suspicious-construct check
+- `ineffassign` — assignments whose value is never read
+- `revive` — replacement for the deprecated `golint`
+- `staticcheck` — broad static-analysis pass
+- `unused` — unused identifiers
+- `gofmt` — canonical formatting
+- `goimports` — canonical formatting + local-import grouping
+
+Run the same set locally from `unifi-port-profile-switcher/`:
+
+```sh
+golangci-lint run --config ../.golangci.yaml ./...
 ```

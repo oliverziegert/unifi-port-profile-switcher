@@ -58,11 +58,11 @@ var ErrAuth = errors.New("unifi: authentication failed")
 
 // APIError represents a controller-side rejection of a request.
 type APIError struct {
-	Status     int
-	Method     string
-	Path       string
-	Body       string // truncated response body
-	Message    string // controller error message, if extractable
+	Status  int
+	Method  string
+	Path    string
+	Body    string // truncated response body
+	Message string // controller error message, if extractable
 }
 
 func (e *APIError) Error() string {
@@ -96,7 +96,7 @@ func (c *Client) Login(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unifi: login: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(io.LimitReader(res.Body, 1024))
@@ -166,7 +166,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 	if err != nil {
 		return fmt.Errorf("unifi: %s %s: %w", method, path, err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	// Refresh CSRF token if the response provides a new one.
 	if t := res.Header.Get("X-CSRF-Token"); t != "" {
