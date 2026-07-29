@@ -25,7 +25,7 @@ jobs:
       addons: ${{ steps.addons.outputs.addons }}
     steps:
       - name: Check out code from GitHub
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Discover and filter addons
         id: addons
@@ -41,7 +41,7 @@ jobs:
         path: ${{ fromJSON(needs.find.outputs.addons) }}
     steps:
       - name: Check out code from GitHub
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Home Assistant addon linter
         uses: frenck/action-addon-linter@f995494fd84fae6310d23617e66d0e37de4f14eb # v2.21
@@ -58,7 +58,7 @@ jobs:
         path: ${{ fromJSON(needs.find.outputs.addons) }}
     steps:
       - name: Check out code from GitHub
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run hadolint
         uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
