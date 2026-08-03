@@ -53,7 +53,7 @@ runs:
   steps:
     - name: Find addon directories
       id: discover
-      uses: home-assistant/actions/helpers/find-addons@e3fb68ebda13d88a0d695082f471ba2c83d025fb # master
+      uses: home-assistant/actions/helpers/find-addons@a7c616ce81ccda50150bf1595786c71b1883fabb # master
 
     - name: Filter to Dockerfile-bearing addons and intersect with changed files
       id: filter
