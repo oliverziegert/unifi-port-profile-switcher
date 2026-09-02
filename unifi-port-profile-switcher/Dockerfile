@@ -1,7 +1,7 @@
 # https://developers.home-assistant.io/docs/apps/configuration#app-dockerfile
 ARG BUILD_FROM=ghcr.io/home-assistant/base:3.23-2026.04.0@sha256:5ea71eca9735949b080a05d271988c9663af3bd1050297abedefa222c61e6807
 
-FROM golang:1.26-alpine@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS builder
+FROM golang:1.26-alpine@sha256:ce864e7223ac17b1775e6fd0b4c0db580c2eb50e7953a427916379e4b92a1628 AS builder
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
